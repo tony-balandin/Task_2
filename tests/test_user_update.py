@@ -1,56 +1,66 @@
 import allure
 import pytest
-from typing import Optional
 
 from stellar_burgers.api_client import StellarApiClient
-from tests.helpers import auth_header, random_email
+from stellar_burgers.endpoints import AUTH_USER
+from stellar_burgers.helpers import auth_header, random_email
 
 
 @allure.feature("User")
 @allure.story("Update user data")
 class TestUserUpdate:
+    @allure.title("Обновление email/имени с авторизацией")
     @pytest.mark.parametrize(
-        "field,new_value",
+        "field,value_factory",
         [
-            # Email must be unique on a shared stand.
-            ("email", None),
-            ("name", "Updated Name"),
-            ("password", "UpdatedPassword123"),
+            ("email", lambda: random_email("updated")),
+            ("name", lambda: "Updated Name"),
         ],
     )
-    def test_update_user_with_authorization_success(
+    def test_update_user_email_or_name_with_authorization_success(
         self,
         api: StellarApiClient,
         registered_user,
         field: str,
-        new_value: Optional[str],
+        value_factory,
     ):
-        token = registered_user["access_token"]
-        value = random_email("updated") if field == "email" else new_value
-        resp = api.patch("/auth/user", json={field: value}, headers=auth_header(token))
+        token = registered_user["response"].json.get("accessToken")
+        assert token is not None
+        value = value_factory()
+
+        resp = api.patch(AUTH_USER, json={field: value}, headers=auth_header(token))
+
+        assert resp.status_code == 200
+        assert resp.json.get("success") is True
+        assert resp.json.get("user") is not None
+        assert resp.json["user"].get(field) == value
+
+    @allure.title("Обновление пароля с авторизацией")
+    def test_update_user_password_with_authorization_success(
+        self,
+        api: StellarApiClient,
+        registered_user,
+    ):
+        token = registered_user["response"].json.get("accessToken")
+        assert token is not None
+
+        resp = api.patch(AUTH_USER, json={"password": "UpdatedPassword123"}, headers=auth_header(token))
 
         assert resp.status_code == 200
         assert resp.json.get("success") is True
         assert resp.json.get("user") is not None
 
-        if field in ("email", "name"):
-            assert resp.json["user"].get(field) == value
-
+    @allure.title("Обновление данных без авторизации возвращает 401")
     @pytest.mark.parametrize(
-        "field,new_value",
+        "payload",
         [
-            ("email", "unauth_email@yandex.ru"),
-            ("name", "Unauth Name"),
-            ("password", "UnauthPassword123"),
+            {"email": "unauth_email@yandex.ru"},
+            {"name": "Unauth Name"},
+            {"password": "UnauthPassword123"},
         ],
     )
-    def test_update_user_without_authorization_returns_401(
-        self,
-        api: StellarApiClient,
-        field: str,
-        new_value: str,
-    ):
-        resp = api.patch("/auth/user", json={field: new_value})
+    def test_update_user_without_authorization_returns_401(self, api: StellarApiClient, payload: dict):
+        resp = api.patch(AUTH_USER, json=payload)
 
         assert resp.status_code == 401
         assert resp.json.get("success") is False
