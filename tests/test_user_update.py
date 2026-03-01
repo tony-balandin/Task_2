@@ -20,15 +20,13 @@ class TestUserUpdate:
     def test_update_user_email_or_name_with_authorization_success(
         self,
         api: StellarApiClient,
-        registered_user,
+        access_token: str,
         field: str,
         value_factory,
     ):
-        token = registered_user["response"].json.get("accessToken")
-        assert token is not None
         value = value_factory()
 
-        resp = api.patch(AUTH_USER, json={field: value}, headers=auth_header(token))
+        resp = api.patch(AUTH_USER, json={field: value}, headers=auth_header(access_token))
 
         assert resp.status_code == 200
         assert resp.json.get("success") is True
@@ -39,12 +37,13 @@ class TestUserUpdate:
     def test_update_user_password_with_authorization_success(
         self,
         api: StellarApiClient,
-        registered_user,
+        access_token: str,
     ):
-        token = registered_user["response"].json.get("accessToken")
-        assert token is not None
-
-        resp = api.patch(AUTH_USER, json={"password": "UpdatedPassword123"}, headers=auth_header(token))
+        resp = api.patch(
+            AUTH_USER,
+            json={"password": "UpdatedPassword123"},
+            headers=auth_header(access_token),
+        )
 
         assert resp.status_code == 200
         assert resp.json.get("success") is True

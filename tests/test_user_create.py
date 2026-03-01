@@ -4,19 +4,15 @@ import pytest
 from stellar_burgers.api_client import StellarApiClient
 from stellar_burgers.data_builders import build_unique_user
 from stellar_burgers.endpoints import AUTH_REGISTER
-from stellar_burgers.helpers import register_unique_user, user_to_payload
+from stellar_burgers.helpers import user_to_payload
 
 
 @allure.feature("User")
 @allure.story("Create user")
 class TestUserCreate:
     @allure.title("Создание уникального пользователя")
-    def test_create_unique_user_success(self, api: StellarApiClient, user_cleanup):
-        user, resp = register_unique_user(api)
-        payload = user_to_payload(user)
-
-        # cleanup should happen even if assertions below fail
-        user_cleanup(resp.json.get("accessToken"))
+    def test_create_unique_user_success(self, create_user):
+        user, payload, resp = create_user()
 
         assert resp.status_code == 200
         assert resp.json.get("success") is True
@@ -41,15 +37,11 @@ class TestUserCreate:
         self,
         api: StellarApiClient,
         missing_field: str,
-        user_cleanup,
     ):
         payload = dict(user_to_payload(build_unique_user()))
         payload.pop(missing_field)
 
         resp = api.post(AUTH_REGISTER, json=payload)
-
-        # best-effort cleanup in case API creates user unexpectedly
-        user_cleanup(resp.json.get("accessToken"))
 
         assert resp.status_code == 403
         assert resp.json.get("success") is False

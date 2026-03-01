@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 
 try:
     import allure  # type: ignore
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
     # Minimal fallback to keep code runnable even if allure is not installed.
     # In the project environment we run with allure-pytest.
     from typing import Callable, TypeVar
@@ -76,5 +76,5 @@ class StellarApiClient:
 def _safe_json(response: requests.Response) -> Dict[str, Any]:
     try:
         return response.json()
-    except Exception:
+    except ValueError:
         return {}
